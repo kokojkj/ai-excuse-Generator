@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Epic Excuse Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 10px;
+        }
+        .input-group input, 
+        .input-group select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        #generateExcuse, #copyExcuse {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            width: 100%;
+            margin-top: 10px;
+        }
+        #generateExcuse:hover, #copyExcuse:hover {
+            background-color: #45a049;
+        }
+        #loading, #errorMessage {
+            text-align: center;
+            color: #666;
+            display: none;
+            margin: 10px 0;
+        }
+        #errorMessage {
+            color: red;
+        }
+        #excuseContainer {
+            margin-top: 20px;
+            background-color: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            border-radius: 5px;
+            min-height: 100px;
+        }
+        #apiKeyInput, #endpointInput {
+            margin-bottom: 20px;
+        }
+        #copyExcuse {
+            display: none;
+            margin-top: 10px;
+            background-color: #2196F3;
+        }
+        #copyExcuse:hover {
+            background-color: #1976D2;
+        }
+        #otherToneInput {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>AI Epic Excuse Generator (for epic procrastinators only)</h2>
+        
+        <div class="input-group">
+            <label for="endpointInput">API Endpoint:</label>
+            <input type="text" id="endpointInput" placeholder="Enter API endpoint (optional), keep it blank to use hack club endpoint">
+        </div>
+
+        <div class="input-group">
+            <label for="apiKeyInput">OpenAI API Key:</label>
+            <input type="password" id="apiKeyInput" placeholder="Enter your OpenAI API Key" value="DUOXQHDJSF8FUZ5NSTNU9WUNKKT6J8I6HH3UX8KFG1LZTNW43BVJYAJFQ15OTMD3">
+        </div>
+
+        <div class="input-group">
+            <label for="excuseFor">Excuse For:</label>
+            <input type="text" id="excuseFor" placeholder="What are you making an excuse for? (e.g., missing assignment)">
+        </div>
+
+        <div class="input-group">
+            <label for="excuseTo">Excuse To:</label>
+            <input type="text" id="excuseTo" placeholder="Who are you making the excuse to? (e.g., teacher, friend)">
+        </div>
+        
+        <div class="input-group">
+            <label for="scenarioInput">Additional Context:</label>
+            <input type="text" id="scenarioInput" placeholder="Provide more details (optional) used to Generate better excuse">
+        </div>
+        
+        <div class="input-group">
+            <label for="excuseType">Excuse Tone:</label>
+            <select id="excuseType">
+                <option value="creative">Creative</option>
+                <option value="professional">Professional</option>
+                <option value="humorous">Humorous</option>
+                <option value="sympathetic">Sympathetic</option>
+                <option value="funny">Funny</option>
+                <option value="dramatic">Dramatic</option>
+				<option value="sadness">sadness</option>
+                <option value="other">Other</option>
+            </select>
+        </div>
+
+        <div class="input-group" id="otherToneInput">
+            <label for="customTone">Specify Tone:</label>
+            <input type="text" id="customTone" placeholder="Enter your custom tone">
+        </div>
+        
+        <button id="generateExcuse">Generate Excuse</button>
+        
+        <div id="loading">Generating epic excuse for epic procrastinator... Please wait.</div>
+        <div id="errorMessage"></div>
+        
+        <div id="excuseContainer"></div>
+        
+        <button id="copyExcuse">Copy Excuse</button>
+    </div>
+
+    <script>
+        const DEFAULT_ENDPOINT = 'https://jamsapi.hackclub.dev/openai/chat/completions';
+
+        document.getElementById('excuseType').addEventListener('change', function() {
+            const otherInput = document.getElementById('otherToneInput');
+            otherInput.style.display = this.value === 'other' ? 'block' : 'none';
+        });
+
+        const generateExcusePrompt = (excuseFor, excuseTo, scenario, tone) => {
+            const specificTone = tone === 'other'
+                ? document.getElementById('customTone').value
+                : tone;
+
+            const fullScenario = scenario 
+                ? `Excuse for ${excuseFor} to ${excuseTo} (Additional context: ${scenario})` 
+                : `Excuse for ${excuseFor} to ${excuseTo}`;
+
+            return `Create a ${specificTone} excuse for: ${fullScenario}
+
+IMPORTANT INSTRUCTIONS:
+- Generate a single, coherent, and believable excuse
+- Match the tone specified: ${specificTone}
+- Be creative but not unrealistic
+- Provide ONLY the excuse text
+- Limit the excuse to 2-3 sentences
+- Ensure the excuse sounds plausible and appropriate for the recipient`;
+        };
+
+        document.getElementById('generateExcuse').addEventListener('click', async function() {
+            const excuseContainer = document.getElementById('excuseContainer');
+            const copyButton = document.getElementById('copyExcuse');
+            const loadingIndicator = document.getElementById('loading');
+            const errorMessage = document.getElementById('errorMessage');
+
+            excuseContainer.innerHTML = '';
+            copyButton.style.display = 'none';
+            loadingIndicator.style.display = 'block';
+            errorMessage.style.display = 'none';
+
+            const apiKey = document.getElementById('apiKeyInput').value;
+            const endpoint = document.getElementById('endpointInput').value.trim() || DEFAULT_ENDPOINT;
+            const excuseFor = document.getElementById('excuseFor').value;
+            const excuseTo = document.getElementById('excuseTo').value;
+            const scenario = document.getElementById('scenarioInput').value;
+            const tone = document.getElementById('excuseType').value;
+
+            if (!apiKey) {
+                alert('Please enter your OpenAI API Key');
+                loadingIndicator.style.display = 'none';
+                return;
+            }
+            if (!excuseFor) {
+                alert('Please specify what you are making an excuse for');
+                loadingIndicator.style.display = 'none';
+                return;
+            }
+            if (!excuseTo) {
+                alert('Please specify who you are making the excuse to');
+                loadingIndicator.style.display = 'none';
+                return;
+            }
+            if (tone === 'other' && !document.getElementById('customTone').value) {
+                alert('Please specify your custom tone');
+                loadingIndicator.style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-4o",
+                        messages: [
+                            {
+                                role: "system", 
+                                content: "You are a creative excuse generator that generates believable and tone-appropriate excuses."
+                            },
+                            {
+                                role: "user", 
+                                content: generateExcusePrompt(excuseFor, excuseTo, scenario, tone)
+                            }
+                        ],
+                    })
+                });
+
+                const data = await response.json();
+                loadingIndicator.style.display = 'none';
+
+                const excuse = data.choices[0].message.content.trim();
+
+                const displayTone = tone === 'other'
+                    ? document.getElementById('customTone').value
+                    : tone;
+
+                excuseContainer.innerHTML = `
+                    <p>
+                        <strong>Excuse For ${excuseFor} To ${excuseTo} (${displayTone} tone):</strong><br>
+                        ${excuse}
+                    </p>
+                `;
+                copyButton.style.display = 'block';
+
+            } catch (error) {
+                loadingIndicator.style.display = 'none';
+                errorMessage.textContent = 'Error generating excuse: ' + error.message;
+                errorMessage.style.display = 'block';
+            }
+        });
+
+        document.getElementById('copyExcuse').addEventListener('click', function() {
+            const excuseText = document.getElementById('excuseContainer').innerText;
+            navigator.clipboard.writeText(excuseText.replace(/Excuse For.*\(.*tone\):\n/, '').trim()).then(() => {
+                alert('Excuse copied to clipboard!');
+            }).catch(err => {
+                console.error('Could not copy text: ', err);
+                alert('Failed to copy excuse.');
+            });
+        });
+    </script>
+</body>
+</html>
